@@ -206,7 +206,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5}
 const SB_URL='https://zkjpjshqubzkhercajtk.supabase.co/rest/v1';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpranBqc2hxdWJ6a2hlcmNhanRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MTEzNDEsImV4cCI6MjA5NzM4NzM0MX0.WS02i6YuYNdxoG--p4q04K7LiocXAkyO9mTk3kCmHLo';
 const H={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=representation'};
-let inventory=[],scanReaders={};
+let inventory=[],scanReaders={},scanStreams={};
 
 function toast(msg,ok=true){const t=document.getElementById('toast');t.textContent=msg;t.style.background=ok?'#1f2937':'#991B1B';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 
@@ -390,13 +390,20 @@ async function openScanner(mode){
   wrap.classList.add('show');
   const video=document.getElementById('sv-'+mode);
   try{
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{
+        facingMode:{ideal:'environment'},
+        width:{ideal:1280},
+        height:{ideal:1280},
+        advanced:[{focusMode:'continuous'}]
+      }
+    });
+    scanStreams[mode]=stream;
+    video.srcObject=stream;
+    await video.play();
     const codeReader = new ZXing.BrowserMultiFormatReader();
     scanReaders[mode]=codeReader;
-    const devices = await codeReader.listVideoInputDevices();
-    let deviceId = devices[0]?.deviceId;
-    const backCam = devices.find(d=>/back|rear|tras|environment/i.test(d.label));
-    if(backCam) deviceId = backCam.deviceId;
-    codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+    codeReader.decodeFromVideoElement(video, (result, err) => {
       if(result) usarCodigo(mode, result.getText());
     });
   }catch(e){
@@ -411,6 +418,10 @@ function closeScanner(mode){
   if(scanReaders[mode]){
     try{scanReaders[mode].reset();}catch(e){}
     delete scanReaders[mode];
+  }
+  if(scanStreams[mode]){
+    try{scanStreams[mode].getTracks().forEach(t=>t.stop());}catch(e){}
+    delete scanStreams[mode];
   }
 }
 
