@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inventario Dental</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/tabler-icons.min.css">
-<script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
+
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f6f9;color:#1a1a2e}
@@ -92,7 +92,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5}
   <p class="section-title">Agregar insumo</p>
   <div class="scan-wrap" id="scan-entrada">
     <div class="scan-frame">
-      <video id="sv-entrada" autoplay playsinline muted></video>
+      <video id="sv-entrada" autoplay playsinline muted style="width:240px;height:240px;object-fit:cover;border-radius:10px"></video>
       <div class="corner c-tl"></div><div class="corner c-tr"></div>
       <div class="corner c-bl"></div><div class="corner c-br"></div>
       <div class="scan-line"></div>
@@ -144,7 +144,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5}
   <p class="section-title">Registrar uso</p>
   <div class="scan-wrap" id="scan-salida">
     <div class="scan-frame">
-      <video id="sv-salida" autoplay playsinline muted></video>
+      <video id="sv-salida" autoplay playsinline muted style="width:240px;height:240px;object-fit:cover;border-radius:10px"></video>
       <div class="corner c-tl"></div><div class="corner c-tr"></div>
       <div class="corner c-bl"></div><div class="corner c-br"></div>
       <div class="scan-line"></div>
@@ -206,7 +206,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5}
 const SB_URL='https://zkjpjshqubzkhercajtk.supabase.co/rest/v1';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpranBqc2hxdWJ6a2hlcmNhanRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MTEzNDEsImV4cCI6MjA5NzM4NzM0MX0.WS02i6YuYNdxoG--p4q04K7LiocXAkyO9mTk3kCmHLo';
 const H={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=representation'};
-let inventory=[],scanReaders={},scanStreams={};
+let inventory=[],scanStreams={},scanIntervals={};
 
 function toast(msg,ok=true){const t=document.getElementById('toast');t.textContent=msg;t.style.background=ok?'#1f2937':'#991B1B';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 
@@ -388,41 +388,25 @@ async function openScanner(mode){
   const wrap=document.getElementById('scan-'+mode);
   if(!wrap){if(mode==='buscar'){const c=prompt('Ingresa el código a buscar:');if(c)usarCodigo(mode,c);}return;}
   wrap.classList.add('show');
-  const video=document.getElementById('sv-'+mode);
   try{
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video:{
-        facingMode:{ideal:'environment'},
-        width:{ideal:1280},
-        height:{ideal:1280},
-        advanced:[{focusMode:'continuous'}]
-      }
-    });
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
     scanStreams[mode]=stream;
-    video.srcObject=stream;
-    await video.play();
-    const codeReader = new ZXing.BrowserMultiFormatReader();
-    scanReaders[mode]=codeReader;
-    codeReader.decodeFromVideoElement(video, (result, err) => {
-      if(result) usarCodigo(mode, result.getText());
-    });
-  }catch(e){
-    console.log('Error cámara:', e);
-    toast('No se pudo abrir la cámara, usa el código manual',false);
-  }
+    const video=document.getElementById('sv-'+mode);
+    if(video)video.srcObject=stream;
+    if(typeof BarcodeDetector!=='undefined'){
+      const bd=new BarcodeDetector({formats:['qr_code','ean_13','ean_8','code_128','code_39','upc_a','upc_e']});
+      scanIntervals[mode]=setInterval(async()=>{
+        try{const codes=await bd.detect(video);if(codes.length>0)usarCodigo(mode,codes[0].rawValue);}catch(e){}
+      },500);
+    }
+  }catch(e){console.log('Sin cámara, usar manual');}
 }
 
 function closeScanner(mode){
   const wrap=document.getElementById('scan-'+mode);
   if(wrap)wrap.classList.remove('show');
-  if(scanReaders[mode]){
-    try{scanReaders[mode].reset();}catch(e){}
-    delete scanReaders[mode];
-  }
-  if(scanStreams[mode]){
-    try{scanStreams[mode].getTracks().forEach(t=>t.stop());}catch(e){}
-    delete scanStreams[mode];
-  }
+  if(scanStreams[mode]){scanStreams[mode].getTracks().forEach(t=>t.stop());delete scanStreams[mode];}
+  if(scanIntervals[mode]){clearInterval(scanIntervals[mode]);delete scanIntervals[mode];}
 }
 
 function usarCodigo(mode,code){
