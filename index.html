@@ -74,6 +74,7 @@ input:focus,select:focus{outline:none;border-color:#185FA5}
   <button class="tab active" onclick="showTab('stock')" id="t-stock"><i class="ti ti-package"></i>Stock</button>
   <button class="tab" onclick="showTab('entrada')" id="t-entrada"><i class="ti ti-plus"></i>Entrada</button>
   <button class="tab" onclick="showTab('salida')" id="t-salida"><i class="ti ti-arrow-up-right"></i>Salida</button>
+  <button class="tab" onclick="showTab('pedidos')" id="t-pedidos"><i class="ti ti-truck-delivery"></i>Pedidos</button>
   <button class="tab" onclick="showTab('reportes')" id="t-reportes"><i class="ti ti-chart-bar"></i>Reportes</button>
 </div>
 
@@ -158,6 +159,8 @@ input:focus,select:focus{outline:none;border-color:#185FA5}
   </div>
   <div class="card">
     <label>Insumo</label>
+    <input type="text" id="sal-buscar" placeholder="Buscar producto..." oninput="filtrarSalida()" style="margin-bottom:6px">
+    <div id="sal-sugerencias" style="display:none;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;max-height:160px;overflow-y:auto;margin-bottom:6px"></div>
     <div class="row">
       <div><select id="sal-insumo"><option value="">Seleccionar...</option></select></div>
       <button class="btn" onclick="openScanner('salida')" style="padding:9px 12px;flex-shrink:0"><i class="ti ti-scan"></i></button>
@@ -176,10 +179,40 @@ input:focus,select:focus{outline:none;border-color:#185FA5}
   </div>
 </div>
 
+<!-- PEDIDOS -->
+<div class="section" id="s-pedidos">
+  <p class="section-title">Pedidos</p>
+  <div class="card">
+    <label>Insumo a pedir</label>
+    <input type="text" id="ped-nombre" placeholder="Nombre del producto">
+    <div class="row">
+      <div><label>Cantidad</label><input type="number" id="ped-cantidad" placeholder="1" min="1" value="1"></div>
+      <div><label>Unidad</label>
+        <select id="ped-unidad">
+          <option>unidades</option><option>cajas</option><option>rollos</option>
+          <option>frascos</option><option>tubos</option><option>sobres</option>
+        </select>
+      </div>
+    </div>
+    <label>Solicitado por</label>
+    <input type="text" id="ped-solicitante" placeholder="Nombre de quien solicita">
+    <label>Proveedor (opcional)</label>
+    <input type="text" id="ped-proveedor" placeholder="Proveedor">
+    <label>Observaciones (opcional)</label>
+    <input type="text" id="ped-obs" placeholder="Ej: urgente, marca específica...">
+    <button class="btn btn-primary btn-block" onclick="agregarPedido()"><i class="ti ti-plus"></i>Registrar pedido</button>
+  </div>
+  <div id="pedidos-list"></div>
+</div>
+
 <!-- REPORTES -->
 <div class="section" id="s-reportes">
   <p class="section-title">Reportes</p>
   <div class="stat-grid" id="stats-grid"><div class="loading" style="grid-column:span 2"><i class="ti ti-loader"></i>Cargando...</div></div>
+  <div class="card">
+    <p style="font-size:14px;font-weight:600;margin-bottom:12px"><i class="ti ti-users"></i> Consumo por persona</p>
+    <div id="persona-chart"></div>
+  </div>
   <div class="card">
     <p style="font-size:14px;font-weight:600;margin-bottom:12px"><i class="ti ti-building"></i> Consumo por box</p>
     <div id="box-chart"></div>
@@ -221,8 +254,78 @@ function showTab(t){
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   document.getElementById('s-'+t).classList.add('active');
   document.getElementById('t-'+t).classList.add('active');
-  if(t==='stock')loadStock();
+  if(t==='stock')// PEDIDOS
+let pedidos=JSON.parse(localStorage.getItem('dental_pedidos')||'[]');
+function savePedidos(){localStorage.setItem('dental_pedidos',JSON.stringify(pedidos));}
+
+function agregarPedido(){
+  const nombre=document.getElementById('ped-nombre').value.trim();
+  const cantidad=parseInt(document.getElementById('ped-cantidad').value)||1;
+  const unidad=document.getElementById('ped-unidad').value;
+  const solicitante=document.getElementById('ped-solicitante').value.trim()||'Sin especificar';
+  const proveedor=document.getElementById('ped-proveedor').value.trim();
+  const obs=document.getElementById('ped-obs').value.trim();
+  if(!nombre){toast('Ingresa el nombre del producto a pedir',false);return;}
+  pedidos.unshift({id:Date.now(),nombre,cantidad,unidad,solicitante,proveedor,obs,fecha:new Date().toISOString(),estado:'pendiente'});
+  savePedidos();
+  toast('✓ Pedido registrado');
+  ['ped-nombre','ped-solicitante','ped-proveedor','ped-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ped-cantidad').value='1';
+  loadPedidos();
+}
+
+function toggleEstadoPedido(id){
+  const p=pedidos.find(x=>x.id===id);
+  if(!p)return;
+  p.estado=p.estado==='pendiente'?'recibido':'pendiente';
+  savePedidos();loadPedidos();
+}
+
+function eliminarPedido(id){
+  if(!confirm('¿Eliminar este pedido?'))return;
+  pedidos=pedidos.filter(x=>x.id!==id);
+  savePedidos();loadPedidos();
+}
+
+function loadPedidos(){
+  const pendientes=pedidos.filter(p=>p.estado==='pendiente');
+  const recibidos=pedidos.filter(p=>p.estado==='recibido');
+  function renderPed(lista){
+    return lista.map(p=>{
+      const d=new Date(p.fecha);
+      const ds=d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+      const color=p.estado==='recibido'?'#059669':'#D97706';
+      const badge=p.estado==='recibido'?'<span class="badge badge-ok">Recibido</span>':'<span class="badge badge-low">Pendiente</span>';
+      return`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${p.nombre}</div>
+            <div style="font-size:12px;color:#9ca3af;margin-top:2px">${p.cantidad} ${p.unidad} · ${ds}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Solicitado por: ${p.solicitante}</div>
+            ${p.proveedor?`<div style="font-size:12px;color:#6b7280">Proveedor: ${p.proveedor}</div>`:''}
+            ${p.obs?`<div style="font-size:12px;color:#6b7280">Obs: ${p.obs}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">${badge}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" style="flex:1;font-size:12px;padding:7px 8px;background:${p.estado==='pendiente'?'#EAF3DE':'#FEF3C7'};border-color:${p.estado==='pendiente'?'#97C459':'#FCD34D'};color:${p.estado==='pendiente'?'#3B6D11':'#92400E'}" onclick="toggleEstadoPedido(${p.id})">
+            ${p.estado==='pendiente'?'✓ Marcar recibido':'↩ Marcar pendiente'}
+          </button>
+          <button class="btn btn-danger" style="font-size:12px;padding:7px 10px" onclick="eliminarPedido(${p.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  let html='';
+  if(pendientes.length){html+=`<p style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:8px"><i class="ti ti-clock"></i> Pendientes (${pendientes.length})</p>`;html+=renderPed(pendientes);}
+  if(recibidos.length){html+=`<p style="font-size:13px;font-weight:600;color:#3B6D11;margin-top:12px;margin-bottom:8px"><i class="ti ti-check"></i> Recibidos (${recibidos.length})</p>`;html+=renderPed(recibidos);}
+  if(!pedidos.length){html='<div class="loading"><i class="ti ti-truck-delivery" style="font-size:36px;display:block;margin-bottom:8px"></i>Sin pedidos registrados</div>';}
+  document.getElementById('pedidos-list').innerHTML=html;
+}
+
+loadStock();
   if(t==='salida'){if(!inventory.length)loadStock().then(renderSalidaSelect);else renderSalidaSelect();}
+  if(t==='pedidos')loadPedidos();
   if(t==='reportes')loadReportes();
 }
 
@@ -271,7 +374,89 @@ async function agregarInsumo(){
   const cantidad=parseInt(document.getElementById('in-cantidad').value)||0;
   if(!nombre){toast('Ingresa el nombre del insumo',false);return;}
   try{
+    // Buscar duplicado por código o por nombre similar
     const existing=inventory.find(i=>i.codigo===codigo);
+    const existingNombre=!existing?inventory.find(i=>i.nombre.toLowerCase()===nombre.toLowerCase()):null;
+    if(!existing&&existingNombre){
+      if(!confirm('Ya existe un producto con el nombre "'+existingNombre.nombre+'".\n¿Quieres sumar el stock al producto existente en vez de crear uno nuevo?')){
+        return;
+      }
+      await sbPatch('insumos',existingNombre.id,{cantidad:existingNombre.cantidad+cantidad});
+      await sbPost('movimientos',{tipo:'entrada',codigo:existingNombre.codigo,nombre:existingNombre.nombre,cantidad,profesional:'Sistema',box:'-'});
+      toast('✓ Stock sumado a: '+existingNombre.nombre);
+      ['in-codigo','in-nombre','in-cantidad','in-minimo','in-caducidad','in-proveedor'].forEach(id=>document.getElementById(id).value='');
+      await // PEDIDOS
+let pedidos=JSON.parse(localStorage.getItem('dental_pedidos')||'[]');
+function savePedidos(){localStorage.setItem('dental_pedidos',JSON.stringify(pedidos));}
+
+function agregarPedido(){
+  const nombre=document.getElementById('ped-nombre').value.trim();
+  const cantidad=parseInt(document.getElementById('ped-cantidad').value)||1;
+  const unidad=document.getElementById('ped-unidad').value;
+  const solicitante=document.getElementById('ped-solicitante').value.trim()||'Sin especificar';
+  const proveedor=document.getElementById('ped-proveedor').value.trim();
+  const obs=document.getElementById('ped-obs').value.trim();
+  if(!nombre){toast('Ingresa el nombre del producto a pedir',false);return;}
+  pedidos.unshift({id:Date.now(),nombre,cantidad,unidad,solicitante,proveedor,obs,fecha:new Date().toISOString(),estado:'pendiente'});
+  savePedidos();
+  toast('✓ Pedido registrado');
+  ['ped-nombre','ped-solicitante','ped-proveedor','ped-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ped-cantidad').value='1';
+  loadPedidos();
+}
+
+function toggleEstadoPedido(id){
+  const p=pedidos.find(x=>x.id===id);
+  if(!p)return;
+  p.estado=p.estado==='pendiente'?'recibido':'pendiente';
+  savePedidos();loadPedidos();
+}
+
+function eliminarPedido(id){
+  if(!confirm('¿Eliminar este pedido?'))return;
+  pedidos=pedidos.filter(x=>x.id!==id);
+  savePedidos();loadPedidos();
+}
+
+function loadPedidos(){
+  const pendientes=pedidos.filter(p=>p.estado==='pendiente');
+  const recibidos=pedidos.filter(p=>p.estado==='recibido');
+  function renderPed(lista){
+    return lista.map(p=>{
+      const d=new Date(p.fecha);
+      const ds=d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+      const color=p.estado==='recibido'?'#059669':'#D97706';
+      const badge=p.estado==='recibido'?'<span class="badge badge-ok">Recibido</span>':'<span class="badge badge-low">Pendiente</span>';
+      return`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${p.nombre}</div>
+            <div style="font-size:12px;color:#9ca3af;margin-top:2px">${p.cantidad} ${p.unidad} · ${ds}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Solicitado por: ${p.solicitante}</div>
+            ${p.proveedor?`<div style="font-size:12px;color:#6b7280">Proveedor: ${p.proveedor}</div>`:''}
+            ${p.obs?`<div style="font-size:12px;color:#6b7280">Obs: ${p.obs}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">${badge}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" style="flex:1;font-size:12px;padding:7px 8px;background:${p.estado==='pendiente'?'#EAF3DE':'#FEF3C7'};border-color:${p.estado==='pendiente'?'#97C459':'#FCD34D'};color:${p.estado==='pendiente'?'#3B6D11':'#92400E'}" onclick="toggleEstadoPedido(${p.id})">
+            ${p.estado==='pendiente'?'✓ Marcar recibido':'↩ Marcar pendiente'}
+          </button>
+          <button class="btn btn-danger" style="font-size:12px;padding:7px 10px" onclick="eliminarPedido(${p.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  let html='';
+  if(pendientes.length){html+=`<p style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:8px"><i class="ti ti-clock"></i> Pendientes (${pendientes.length})</p>`;html+=renderPed(pendientes);}
+  if(recibidos.length){html+=`<p style="font-size:13px;font-weight:600;color:#3B6D11;margin-top:12px;margin-bottom:8px"><i class="ti ti-check"></i> Recibidos (${recibidos.length})</p>`;html+=renderPed(recibidos);}
+  if(!pedidos.length){html='<div class="loading"><i class="ti ti-truck-delivery" style="font-size:36px;display:block;margin-bottom:8px"></i>Sin pedidos registrados</div>';}
+  document.getElementById('pedidos-list').innerHTML=html;
+}
+
+loadStock();
+      return;
+    }
     if(existing){
       await sbPatch('insumos',existing.id,{cantidad:existing.cantidad+cantidad});
       await sbPost('movimientos',{tipo:'entrada',codigo,nombre:existing.nombre,cantidad,profesional:'Sistema',box:'-'});
@@ -283,13 +468,99 @@ async function agregarInsumo(){
       toast('✓ Insumo agregado');
     }
     ['in-codigo','in-nombre','in-cantidad','in-minimo','in-caducidad','in-proveedor'].forEach(id=>document.getElementById(id).value='');
-    await loadStock();
+    await // PEDIDOS
+let pedidos=JSON.parse(localStorage.getItem('dental_pedidos')||'[]');
+function savePedidos(){localStorage.setItem('dental_pedidos',JSON.stringify(pedidos));}
+
+function agregarPedido(){
+  const nombre=document.getElementById('ped-nombre').value.trim();
+  const cantidad=parseInt(document.getElementById('ped-cantidad').value)||1;
+  const unidad=document.getElementById('ped-unidad').value;
+  const solicitante=document.getElementById('ped-solicitante').value.trim()||'Sin especificar';
+  const proveedor=document.getElementById('ped-proveedor').value.trim();
+  const obs=document.getElementById('ped-obs').value.trim();
+  if(!nombre){toast('Ingresa el nombre del producto a pedir',false);return;}
+  pedidos.unshift({id:Date.now(),nombre,cantidad,unidad,solicitante,proveedor,obs,fecha:new Date().toISOString(),estado:'pendiente'});
+  savePedidos();
+  toast('✓ Pedido registrado');
+  ['ped-nombre','ped-solicitante','ped-proveedor','ped-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ped-cantidad').value='1';
+  loadPedidos();
+}
+
+function toggleEstadoPedido(id){
+  const p=pedidos.find(x=>x.id===id);
+  if(!p)return;
+  p.estado=p.estado==='pendiente'?'recibido':'pendiente';
+  savePedidos();loadPedidos();
+}
+
+function eliminarPedido(id){
+  if(!confirm('¿Eliminar este pedido?'))return;
+  pedidos=pedidos.filter(x=>x.id!==id);
+  savePedidos();loadPedidos();
+}
+
+function loadPedidos(){
+  const pendientes=pedidos.filter(p=>p.estado==='pendiente');
+  const recibidos=pedidos.filter(p=>p.estado==='recibido');
+  function renderPed(lista){
+    return lista.map(p=>{
+      const d=new Date(p.fecha);
+      const ds=d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+      const color=p.estado==='recibido'?'#059669':'#D97706';
+      const badge=p.estado==='recibido'?'<span class="badge badge-ok">Recibido</span>':'<span class="badge badge-low">Pendiente</span>';
+      return`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${p.nombre}</div>
+            <div style="font-size:12px;color:#9ca3af;margin-top:2px">${p.cantidad} ${p.unidad} · ${ds}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Solicitado por: ${p.solicitante}</div>
+            ${p.proveedor?`<div style="font-size:12px;color:#6b7280">Proveedor: ${p.proveedor}</div>`:''}
+            ${p.obs?`<div style="font-size:12px;color:#6b7280">Obs: ${p.obs}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">${badge}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" style="flex:1;font-size:12px;padding:7px 8px;background:${p.estado==='pendiente'?'#EAF3DE':'#FEF3C7'};border-color:${p.estado==='pendiente'?'#97C459':'#FCD34D'};color:${p.estado==='pendiente'?'#3B6D11':'#92400E'}" onclick="toggleEstadoPedido(${p.id})">
+            ${p.estado==='pendiente'?'✓ Marcar recibido':'↩ Marcar pendiente'}
+          </button>
+          <button class="btn btn-danger" style="font-size:12px;padding:7px 10px" onclick="eliminarPedido(${p.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  let html='';
+  if(pendientes.length){html+=`<p style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:8px"><i class="ti ti-clock"></i> Pendientes (${pendientes.length})</p>`;html+=renderPed(pendientes);}
+  if(recibidos.length){html+=`<p style="font-size:13px;font-weight:600;color:#3B6D11;margin-top:12px;margin-bottom:8px"><i class="ti ti-check"></i> Recibidos (${recibidos.length})</p>`;html+=renderPed(recibidos);}
+  if(!pedidos.length){html='<div class="loading"><i class="ti ti-truck-delivery" style="font-size:36px;display:block;margin-bottom:8px"></i>Sin pedidos registrados</div>';}
+  document.getElementById('pedidos-list').innerHTML=html;
+}
+
+loadStock();
   }catch(e){toast('Error: '+e.message,false);}
 }
 
 function renderSalidaSelect(){
   const sel=document.getElementById('sal-insumo');
   sel.innerHTML='<option value="">Seleccionar...</option>'+inventory.map(i=>`<option value="${i.id}">${i.nombre} (${i.cantidad} ${i.unidad})</option>`).join('');
+}
+
+function filtrarSalida(){
+  const q=document.getElementById('sal-buscar').value.toLowerCase();
+  const sug=document.getElementById('sal-sugerencias');
+  if(!q){sug.style.display='none';return;}
+  const matches=inventory.filter(i=>i.nombre.toLowerCase().includes(q)).slice(0,6);
+  if(!matches.length){sug.style.display='none';return;}
+  sug.style.display='block';
+  sug.innerHTML=matches.map(i=>`<div onclick="elegirInsumoSalida('${i.id}','${i.nombre.replace(/'/g,"\\'")}');document.getElementById('sal-buscar').value=''" style="padding:10px 12px;border-bottom:1px solid #e5e7eb;cursor:pointer;font-size:13px"><b>${i.nombre}</b><br><span style="color:#9ca3af">${i.cantidad} ${i.unidad} disponibles</span></div>`).join('');
+}
+
+function elegirInsumoSalida(id,nombre){
+  document.getElementById('sal-sugerencias').style.display='none';
+  document.getElementById('sal-insumo').value=id;
+  document.getElementById('sal-buscar').value=nombre;
+  document.getElementById('sal-buscar').placeholder='Producto seleccionado ✓';
 }
 
 async function registrarSalida(){
@@ -307,7 +578,76 @@ async function registrarSalida(){
     toast('✓ Salida registrada');
     ['sal-profesional','sal-proc'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('sal-cantidad').value='1';
-    await loadStock();renderSalidaSelect();
+    await // PEDIDOS
+let pedidos=JSON.parse(localStorage.getItem('dental_pedidos')||'[]');
+function savePedidos(){localStorage.setItem('dental_pedidos',JSON.stringify(pedidos));}
+
+function agregarPedido(){
+  const nombre=document.getElementById('ped-nombre').value.trim();
+  const cantidad=parseInt(document.getElementById('ped-cantidad').value)||1;
+  const unidad=document.getElementById('ped-unidad').value;
+  const solicitante=document.getElementById('ped-solicitante').value.trim()||'Sin especificar';
+  const proveedor=document.getElementById('ped-proveedor').value.trim();
+  const obs=document.getElementById('ped-obs').value.trim();
+  if(!nombre){toast('Ingresa el nombre del producto a pedir',false);return;}
+  pedidos.unshift({id:Date.now(),nombre,cantidad,unidad,solicitante,proveedor,obs,fecha:new Date().toISOString(),estado:'pendiente'});
+  savePedidos();
+  toast('✓ Pedido registrado');
+  ['ped-nombre','ped-solicitante','ped-proveedor','ped-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ped-cantidad').value='1';
+  loadPedidos();
+}
+
+function toggleEstadoPedido(id){
+  const p=pedidos.find(x=>x.id===id);
+  if(!p)return;
+  p.estado=p.estado==='pendiente'?'recibido':'pendiente';
+  savePedidos();loadPedidos();
+}
+
+function eliminarPedido(id){
+  if(!confirm('¿Eliminar este pedido?'))return;
+  pedidos=pedidos.filter(x=>x.id!==id);
+  savePedidos();loadPedidos();
+}
+
+function loadPedidos(){
+  const pendientes=pedidos.filter(p=>p.estado==='pendiente');
+  const recibidos=pedidos.filter(p=>p.estado==='recibido');
+  function renderPed(lista){
+    return lista.map(p=>{
+      const d=new Date(p.fecha);
+      const ds=d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+      const color=p.estado==='recibido'?'#059669':'#D97706';
+      const badge=p.estado==='recibido'?'<span class="badge badge-ok">Recibido</span>':'<span class="badge badge-low">Pendiente</span>';
+      return`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${p.nombre}</div>
+            <div style="font-size:12px;color:#9ca3af;margin-top:2px">${p.cantidad} ${p.unidad} · ${ds}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Solicitado por: ${p.solicitante}</div>
+            ${p.proveedor?`<div style="font-size:12px;color:#6b7280">Proveedor: ${p.proveedor}</div>`:''}
+            ${p.obs?`<div style="font-size:12px;color:#6b7280">Obs: ${p.obs}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">${badge}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" style="flex:1;font-size:12px;padding:7px 8px;background:${p.estado==='pendiente'?'#EAF3DE':'#FEF3C7'};border-color:${p.estado==='pendiente'?'#97C459':'#FCD34D'};color:${p.estado==='pendiente'?'#3B6D11':'#92400E'}" onclick="toggleEstadoPedido(${p.id})">
+            ${p.estado==='pendiente'?'✓ Marcar recibido':'↩ Marcar pendiente'}
+          </button>
+          <button class="btn btn-danger" style="font-size:12px;padding:7px 10px" onclick="eliminarPedido(${p.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  let html='';
+  if(pendientes.length){html+=`<p style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:8px"><i class="ti ti-clock"></i> Pendientes (${pendientes.length})</p>`;html+=renderPed(pendientes);}
+  if(recibidos.length){html+=`<p style="font-size:13px;font-weight:600;color:#3B6D11;margin-top:12px;margin-bottom:8px"><i class="ti ti-check"></i> Recibidos (${recibidos.length})</p>`;html+=renderPed(recibidos);}
+  if(!pedidos.length){html='<div class="loading"><i class="ti ti-truck-delivery" style="font-size:36px;display:block;margin-bottom:8px"></i>Sin pedidos registrados</div>';}
+  document.getElementById('pedidos-list').innerHTML=html;
+}
+
+loadStock();renderSalidaSelect();
   }catch(e){toast('Error: '+e.message,false);}
 }
 
@@ -323,6 +663,20 @@ async function loadReportes(){
       <div class="stat"><div class="stat-val" style="color:#DC2626">${agotados}</div><div class="stat-lbl">Agotados</div></div>
       <div class="stat"><div class="stat-val" style="color:#D97706">${bajos}</div><div class="stat-lbl">Stock bajo</div></div>
       <div class="stat"><div class="stat-val" style="color:#7C3AED">${expItems}</div><div class="stat-lbl">Por vencer</div></div>`;
+    // Ranking por persona
+    const personaCount={};
+    movs.filter(h=>h.tipo==='salida'&&h.profesional&&h.profesional!=='No especificado').forEach(h=>{
+      personaCount[h.profesional]=(personaCount[h.profesional]||0)+h.cantidad;
+    });
+    const personas=Object.entries(personaCount).sort((a,b)=>b[1]-a[1]);
+    const maxP=personas[0]?personas[0][1]:1;
+    document.getElementById('persona-chart').innerHTML=personas.length?personas.map(([p,cnt])=>`
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${p}</span><span style="font-weight:600">${cnt} uds</span></div>
+        <div style="height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${Math.round(cnt/maxP*100)}%;background:#10B981;border-radius:4px"></div>
+        </div>
+      </div>`).join(''):'<p style="font-size:13px;color:#9ca3af">Sin datos aún</p>';
     const boxCount={};
     movs.filter(h=>h.tipo==='salida').forEach(h=>{boxCount[h.box]=(boxCount[h.box]||0)+h.cantidad;});
     const boxes=Object.entries(boxCount).sort((a,b)=>b[1]-a[1]);
@@ -378,7 +732,76 @@ async function openDetail(id){
 
 async function eliminarInsumo(id,nombre){
   if(!confirm('¿Eliminar '+nombre+'?'))return;
-  try{await sbDelete('insumos',id);toast('Insumo eliminado');closeModal();loadStock();}
+  try{await sbDelete('insumos',id);toast('Insumo eliminado');closeModal();// PEDIDOS
+let pedidos=JSON.parse(localStorage.getItem('dental_pedidos')||'[]');
+function savePedidos(){localStorage.setItem('dental_pedidos',JSON.stringify(pedidos));}
+
+function agregarPedido(){
+  const nombre=document.getElementById('ped-nombre').value.trim();
+  const cantidad=parseInt(document.getElementById('ped-cantidad').value)||1;
+  const unidad=document.getElementById('ped-unidad').value;
+  const solicitante=document.getElementById('ped-solicitante').value.trim()||'Sin especificar';
+  const proveedor=document.getElementById('ped-proveedor').value.trim();
+  const obs=document.getElementById('ped-obs').value.trim();
+  if(!nombre){toast('Ingresa el nombre del producto a pedir',false);return;}
+  pedidos.unshift({id:Date.now(),nombre,cantidad,unidad,solicitante,proveedor,obs,fecha:new Date().toISOString(),estado:'pendiente'});
+  savePedidos();
+  toast('✓ Pedido registrado');
+  ['ped-nombre','ped-solicitante','ped-proveedor','ped-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ped-cantidad').value='1';
+  loadPedidos();
+}
+
+function toggleEstadoPedido(id){
+  const p=pedidos.find(x=>x.id===id);
+  if(!p)return;
+  p.estado=p.estado==='pendiente'?'recibido':'pendiente';
+  savePedidos();loadPedidos();
+}
+
+function eliminarPedido(id){
+  if(!confirm('¿Eliminar este pedido?'))return;
+  pedidos=pedidos.filter(x=>x.id!==id);
+  savePedidos();loadPedidos();
+}
+
+function loadPedidos(){
+  const pendientes=pedidos.filter(p=>p.estado==='pendiente');
+  const recibidos=pedidos.filter(p=>p.estado==='recibido');
+  function renderPed(lista){
+    return lista.map(p=>{
+      const d=new Date(p.fecha);
+      const ds=d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+      const color=p.estado==='recibido'?'#059669':'#D97706';
+      const badge=p.estado==='recibido'?'<span class="badge badge-ok">Recibido</span>':'<span class="badge badge-low">Pendiente</span>';
+      return`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${p.nombre}</div>
+            <div style="font-size:12px;color:#9ca3af;margin-top:2px">${p.cantidad} ${p.unidad} · ${ds}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Solicitado por: ${p.solicitante}</div>
+            ${p.proveedor?`<div style="font-size:12px;color:#6b7280">Proveedor: ${p.proveedor}</div>`:''}
+            ${p.obs?`<div style="font-size:12px;color:#6b7280">Obs: ${p.obs}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">${badge}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" style="flex:1;font-size:12px;padding:7px 8px;background:${p.estado==='pendiente'?'#EAF3DE':'#FEF3C7'};border-color:${p.estado==='pendiente'?'#97C459':'#FCD34D'};color:${p.estado==='pendiente'?'#3B6D11':'#92400E'}" onclick="toggleEstadoPedido(${p.id})">
+            ${p.estado==='pendiente'?'✓ Marcar recibido':'↩ Marcar pendiente'}
+          </button>
+          <button class="btn btn-danger" style="font-size:12px;padding:7px 10px" onclick="eliminarPedido(${p.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  let html='';
+  if(pendientes.length){html+=`<p style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:8px"><i class="ti ti-clock"></i> Pendientes (${pendientes.length})</p>`;html+=renderPed(pendientes);}
+  if(recibidos.length){html+=`<p style="font-size:13px;font-weight:600;color:#3B6D11;margin-top:12px;margin-bottom:8px"><i class="ti ti-check"></i> Recibidos (${recibidos.length})</p>`;html+=renderPed(recibidos);}
+  if(!pedidos.length){html='<div class="loading"><i class="ti ti-truck-delivery" style="font-size:36px;display:block;margin-bottom:8px"></i>Sin pedidos registrados</div>';}
+  document.getElementById('pedidos-list').innerHTML=html;
+}
+
+loadStock();}
   catch(e){toast('Error al eliminar',false);}
 }
 
@@ -427,6 +850,75 @@ function usarCodigo(mode,code){
 }
 
 document.getElementById('detail-modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+// PEDIDOS
+let pedidos=JSON.parse(localStorage.getItem('dental_pedidos')||'[]');
+function savePedidos(){localStorage.setItem('dental_pedidos',JSON.stringify(pedidos));}
+
+function agregarPedido(){
+  const nombre=document.getElementById('ped-nombre').value.trim();
+  const cantidad=parseInt(document.getElementById('ped-cantidad').value)||1;
+  const unidad=document.getElementById('ped-unidad').value;
+  const solicitante=document.getElementById('ped-solicitante').value.trim()||'Sin especificar';
+  const proveedor=document.getElementById('ped-proveedor').value.trim();
+  const obs=document.getElementById('ped-obs').value.trim();
+  if(!nombre){toast('Ingresa el nombre del producto a pedir',false);return;}
+  pedidos.unshift({id:Date.now(),nombre,cantidad,unidad,solicitante,proveedor,obs,fecha:new Date().toISOString(),estado:'pendiente'});
+  savePedidos();
+  toast('✓ Pedido registrado');
+  ['ped-nombre','ped-solicitante','ped-proveedor','ped-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ped-cantidad').value='1';
+  loadPedidos();
+}
+
+function toggleEstadoPedido(id){
+  const p=pedidos.find(x=>x.id===id);
+  if(!p)return;
+  p.estado=p.estado==='pendiente'?'recibido':'pendiente';
+  savePedidos();loadPedidos();
+}
+
+function eliminarPedido(id){
+  if(!confirm('¿Eliminar este pedido?'))return;
+  pedidos=pedidos.filter(x=>x.id!==id);
+  savePedidos();loadPedidos();
+}
+
+function loadPedidos(){
+  const pendientes=pedidos.filter(p=>p.estado==='pendiente');
+  const recibidos=pedidos.filter(p=>p.estado==='recibido');
+  function renderPed(lista){
+    return lista.map(p=>{
+      const d=new Date(p.fecha);
+      const ds=d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+      const color=p.estado==='recibido'?'#059669':'#D97706';
+      const badge=p.estado==='recibido'?'<span class="badge badge-ok">Recibido</span>':'<span class="badge badge-low">Pendiente</span>';
+      return`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${p.nombre}</div>
+            <div style="font-size:12px;color:#9ca3af;margin-top:2px">${p.cantidad} ${p.unidad} · ${ds}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Solicitado por: ${p.solicitante}</div>
+            ${p.proveedor?`<div style="font-size:12px;color:#6b7280">Proveedor: ${p.proveedor}</div>`:''}
+            ${p.obs?`<div style="font-size:12px;color:#6b7280">Obs: ${p.obs}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">${badge}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" style="flex:1;font-size:12px;padding:7px 8px;background:${p.estado==='pendiente'?'#EAF3DE':'#FEF3C7'};border-color:${p.estado==='pendiente'?'#97C459':'#FCD34D'};color:${p.estado==='pendiente'?'#3B6D11':'#92400E'}" onclick="toggleEstadoPedido(${p.id})">
+            ${p.estado==='pendiente'?'✓ Marcar recibido':'↩ Marcar pendiente'}
+          </button>
+          <button class="btn btn-danger" style="font-size:12px;padding:7px 10px" onclick="eliminarPedido(${p.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  let html='';
+  if(pendientes.length){html+=`<p style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:8px"><i class="ti ti-clock"></i> Pendientes (${pendientes.length})</p>`;html+=renderPed(pendientes);}
+  if(recibidos.length){html+=`<p style="font-size:13px;font-weight:600;color:#3B6D11;margin-top:12px;margin-bottom:8px"><i class="ti ti-check"></i> Recibidos (${recibidos.length})</p>`;html+=renderPed(recibidos);}
+  if(!pedidos.length){html='<div class="loading"><i class="ti ti-truck-delivery" style="font-size:36px;display:block;margin-bottom:8px"></i>Sin pedidos registrados</div>';}
+  document.getElementById('pedidos-list').innerHTML=html;
+}
+
 loadStock();
 </script>
 </body>
