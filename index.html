@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="es" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="google" content="notranslate">
+<meta http-equiv="Content-Language" content="es">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventario Dental</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/tabler-icons.min.css">
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f6f9;color:#1a1a2e}
+.app{max-width:480px;margin:0 auto;background:#fff;min-height:100vh;position:relative}
+.tab-bar{position:sticky;top:0;background:#fff;border-bottom:1px solid #e8ecf0;display:flex;z-index:10}
+.tab{flex:1;padding:12px 4px;font-size:11px;text-align:center;cursor:pointer;color:#6b7280;border:none;background:none;border-bottom:2px solid transparent;transition:.2s}
+.tab.active{color:#185FA5;border-bottom:2px solid #185FA5;font-weight:600}
+.tab i{display:block;font-size:20px;margin-bottom:2px}
+.section{display:none;padding:16px}
+.section.active{display:block}
+.card{background:#fff;border:1px solid #e8ecf0;border-radius:12px;padding:16px 20px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.badge{display:inline-block;font-size:11px;padding:3px 8px;border-radius:6px;font-weight:600}
+.badge-ok{background:#EAF3DE;color:#3B6D11}
+.badge-low{background:#FAEEDA;color:#854F0B}
+.badge-out{background:#FCEBEB;color:#A32D2D}
+.badge-exp{background:#F3E8FF;color:#6B21A8}
+label{font-size:13px;color:#6b7280;display:block;margin-bottom:4px;margin-top:12px}
+input,select{width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;background:#fff;color:#1a1a2e}
+input:focus,select:focus{outline:none;border-color:#185FA5}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:8px;border:1px solid #d1d5db;background:#fff;color:#1a1a2e;font-size:14px;cursor:pointer;transition:.15s}
+.btn:hover{background:#f9fafb}
+.btn-primary{background:#185FA5;color:#fff;border-color:#185FA5}
+.btn-primary:hover{background:#1150880}
+.btn-danger{background:#FCEBEB;color:#A32D2D;border-color:#F09595}
+.btn-success{background:#EAF3DE;color:#3B6D11;border-color:#97C459}
+.btn-block{display:flex;width:100%;justify-content:center;margin-top:16px}
+.row{display:flex;gap:8px;align-items:flex-end}
+.row>div{flex:1}
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+.stat{background:#f8fafc;border-radius:10px;padding:14px}
+.stat-val{font-size:24px;font-weight:700}
+.stat-lbl{font-size:12px;color:#6b7280;margin-top:2px}
+.item-name{font-size:14px;font-weight:600}
+.item-sub{font-size:12px;color:#6b7280;margin-top:2px}
+.search-bar{display:flex;gap:8px;margin-bottom:16px}
+.search-bar input{flex:1}
+.exp-warn{background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#92400E}
+.section-title{font-size:17px;font-weight:700;margin-bottom:16px}
+.history-item{padding:9px 0;border-bottom:1px solid #f3f4f6;font-size:13px}
+.history-item:last-child{border-bottom:none}
+.loading{text-align:center;padding:50px 20px;color:#9ca3af;font-size:14px}
+.loading i{font-size:40px;display:block;margin-bottom:10px}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:200;opacity:0;transition:.3s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+.scan-wrap{background:rgba(0,0,0,0.9);border-radius:12px;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;margin-bottom:12px}
+.scan-wrap.show{display:flex}
+.scan-frame{position:relative;width:240px;height:240px;margin-bottom:16px}
+.scan-frame video{width:240px;height:240px;object-fit:cover;border-radius:10px}
+.corner{position:absolute;width:22px;height:22px;border-color:#3B82F6;border-style:solid}
+.c-tl{top:0;left:0;border-width:3px 0 0 3px}
+.c-tr{top:0;right:0;border-width:3px 3px 0 0}
+.c-bl{bottom:0;left:0;border-width:0 0 3px 3px}
+.c-br{bottom:0;right:0;border-width:0 3px 3px 0}
+.scan-line{position:absolute;left:10px;right:10px;height:2px;background:#3B82F6;animation:scan 2s infinite linear}
+@keyframes scan{0%{top:20%}50%{top:80%}100%{top:20%}}
+.modal-wrap{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:50;align-items:flex-end}
+.modal-wrap.show{display:flex}
+.modal-body{background:#fff;width:100%;max-width:480px;margin:0 auto;border-radius:20px 20px 0 0;padding:20px;max-height:90vh;overflow-y:auto}
+</style>
+</head>
+<body>
+<div id="toast" class="toast"></div>
+<div class="app">
+
+<div class="tab-bar">
+  <button class="tab active" onclick="showTab('stock')" id="t-stock"><i class="ti ti-package"></i>Stock</button>
+  <button class="tab" onclick="showTab('entrada')" id="t-entrada"><i class="ti ti-plus"></i>Entrada</button>
+  <button class="tab" onclick="showTab('salida')" id="t-salida"><i class="ti ti-arrow-up-right"></i>Salida</button>
+  <button class="tab" onclick="showTab('pedidos')" id="t-pedidos"><i class="ti ti-truck-delivery"></i>Pedidos</button>
+  <button class="tab" onclick="showTab('reportes')" id="t-reportes"><i class="ti ti-chart-bar"></i>Reportes</button>
+</div>
+
+<!-- STOCK -->
+<div class="section active" id="s-stock">
+  <div class="search-bar">
+    <input type="text" id="search-stock" placeholder="Buscar insumo..." oninput="renderStock()">
+    <button class="btn" onclick="openScanner('buscar')"><i class="ti ti-scan"></i></button>
+  </div>
+  <div id="exp-alerts"></div>
+  <div id="stock-list"><div class="loading"><i class="ti ti-loader"></i>Conectando...</div></div>
+</div>
+
+<!-- ENTRADA -->
+<div class="section" id="s-entrada">
+  <p class="section-title">Agregar insumo</p>
+  <div class="scan-wrap" id="scan-entrada">
+    <div class="scan-frame">
+      <video id="sv-entrada" autoplay playsinline muted style="width:240px;height:240px;object-fit:cover;border-radius:10px"></video>
+      <div class="corner c-tl"></div><div class="corner c-tr"></div>
+      <div class="corner c-bl"></div><div class="corner c-br"></div>
+      <div class="scan-line"></div>
+    </div>
+    <p style="color:#fff;font-size:13px;margin-bottom:12px;text-align:center">Apunta al código de barras o QR</p>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="sm-entrada" placeholder="O escribe el código..." style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:8px;padding:8px 10px;font-size:13px;width:160px">
+      <button class="btn btn-primary" onclick="usarCodigo('entrada',document.getElementById('sm-entrada').value)">Usar</button>
+    </div>
+    <button class="btn" style="margin-top:10px;background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.3)" onclick="closeScanner('entrada')"><i class="ti ti-x"></i>Cerrar</button>
+  </div>
+  <div class="card">
+    <label>Código de barras / QR</label>
+    <div class="row">
+      <div><input type="text" id="in-codigo" placeholder="Escanear o escribir código"></div>
+      <button class="btn" onclick="openScanner('entrada')" style="padding:9px 12px;flex-shrink:0"><i class="ti ti-scan"></i></button>
+    </div>
+    <label>Nombre del insumo</label>
+    <input type="text" id="in-nombre" placeholder="Ej: Guantes de látex talla M">
+    <label>Categoría</label>
+    <select id="in-cat">
+      <option>Protección personal</option><option>Materiales de impresión</option>
+      <option>Instrumental</option><option>Anestesia</option>
+      <option>Composites / Resinas</option><option>Endodoncia</option>
+      <option>Periodoncia</option><option>Higiene y esterilización</option>
+      <option>Radiología</option><option>Otro</option>
+    </select>
+    <div class="row">
+      <div><label>Cantidad</label><input type="number" id="in-cantidad" placeholder="0" min="0"></div>
+      <div><label>Unidad</label>
+        <select id="in-unidad">
+          <option>unidades</option><option>cajas</option><option>rollos</option>
+          <option>frascos</option><option>tubos</option><option>sobres</option>
+        </select>
+      </div>
+    </div>
+    <label>Stock mínimo (alerta)</label>
+    <input type="number" id="in-minimo" placeholder="5" min="0">
+    <label>Fecha de caducidad</label>
+    <input type="date" id="in-caducidad">
+    <label>Proveedor (opcional)</label>
+    <input type="text" id="in-proveedor" placeholder="Nombre del proveedor">
+    <button class="btn btn-primary btn-block" onclick="agregarInsumo()"><i class="ti ti-plus"></i>Agregar al inventario</button>
+  </div>
+</div>
+
+<!-- SALIDA -->
+<div class="section" id="s-salida">
+  <p class="section-title">Registrar uso</p>
+  <div class="scan-wrap" id="scan-salida">
+    <div class="scan-frame">
+      <video id="sv-salida" autoplay playsinline muted style="width:240px;height:240px;object-fit:cover;border-radius:10px"></video>
+      <div class="corner c-tl"></div><div class="corner c-tr"></div>
+      <div class="corner c-bl"></div><div class="corner c-br"></div>
+      <div class="scan-line"></div>
+    </div>
+    <p style="color:#fff;font-size:13px;margin-bottom:12px;text-align:center">Apunta al código del insumo</p>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="sm-salida" placeholder="O escribe el código..." style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:8px;padding:8px 10px;font-size:13px;width:160px">
+      <button class="btn btn-primary" onclick="usarCodigo('salida',document.getElementById('sm-salida').value)">Usar</button>
+    </div>
+    <button class="btn" style="margin-top:10px;background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.3)" onclick="closeScanner('salida')"><i class="ti ti-x"></i>Cerrar</button>
+  </div>
+  <div class="card">
+    <label>Insumo</label>
+    <input type="text" id="sal-buscar" placeholder="Buscar producto..." oninput="filtrarSalida()" style="margin-bottom:6px">
+    <div id="sal-sugerencias" style="display:none;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;max-height:160px;overflow-y:auto;margin-bottom:6px"></div>
+    <div class="row">
+      <div><select id="sal-insumo"><option value="">Seleccionar...</option></select></div>
+      <button class="btn" onclick="openScanner('salida')" style="padding:9px 12px;flex-shrink:0"><i class="ti ti-scan"></i></button>
+    </div>
+    <label>Cantidad usada</label>
+    <input type="number" id="sal-cantidad" placeholder="1" min="1" value="1">
+    <label>Profesional / Responsable</label>
+    <input type="text" id="sal-profesional" placeholder="Dr./Dra. Nombre">
+    <label>Box / Sillón</label>
+    <select id="sal-box">
+      <option>Box 1</option><option>Box 2</option><option>Box 3</option><option>Box 4</option><option>Box 5</option>
+    </select>
+    <label>Procedimiento (opcional)</label>
+    <input type="text" id="sal-proc" placeholder="Ej: Extracción, Resina, Limpieza">
+    <button class="btn btn-primary btn-block" onclick="registrarSalida()"><i class="ti ti-arrow-up-right"></i>Registrar salida</button>
+  </div>
+</div>
+
+<!-- PEDIDOS -->
+<div class="section" id="s-pedidos">
+  <p class="section-title">Pedidos</p>
+  <div class="card">
+    <label>Insumo a pedir</label>
+    <input type="text" id="ped-nombre" placeholder="Nombre del producto">
+    <div class="row">
+      <div><label>Cantidad</label><input type="number" id="ped-cantidad" placeholder="1" min="1" value="1"></div>
+      <div><label>Unidad</label>
+        <select id="ped-unidad">
+          <option>unidades</option><option>cajas</option><option>rollos</option>
+          <option>frascos</option><option>tubos</option><option>sobres</option>
+        </select>
+      </div>
+    </div>
+    <label>Solicitado por</label>
+    <input type="text" id="ped-solicitante" placeholder="Nombre de quien solicita">
+    <label>Proveedor (opcional)</label>
+    <input type="text" id="ped-proveedor" placeholder="Proveedor">
+    <label>Observaciones (opcional)</label>
+    <input type="text" id="ped-obs" placeholder="Ej: urgente, marca específica...">
+    <button class="btn btn-primary btn-block" onclick="agregarPedido()"><i class="ti ti-plus"></i>Registrar pedido</button>
+  </div>
+  <div id="pedidos-list"></div>
+</div>
+
+<!-- REPORTES -->
+<div class="section" id="s-reportes">
+  <p class="section-title">Reportes</p>
+  <div class="stat-grid" id="stats-grid"><div class="loading" style="grid-column:span 2"><i class="ti ti-loader"></i>Cargando...</div></div>
+  <div class="card">
+    <p style="font-size:14px;font-weight:600;margin-bottom:12px"><i class="ti ti-users"></i> Consumo por persona</p>
+    <div id="persona-chart"></div>
+  </div>
+  <div class="card">
+    <p style="font-size:14px;font-weight:600;margin-bottom:12px"><i class="ti ti-building"></i> Consumo por box</p>
+    <div id="box-chart"></div>
+  </div>
+  <div class="card">
+    <p style="font-size:14px;font-weight:600;margin-bottom:12px"><i class="ti ti-history"></i> Últimos movimientos</p>
+    <div id="historial-list"></div>
+  </div>
+</div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-wrap" id="detail-modal">
+  <div class="modal-body">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <p style="font-size:17px;font-weight:700" id="modal-title"></p>
+      <button class="btn" onclick="closeModal()" style="padding:6px 10px"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+const SB_URL='https://zkjpjshqubzkhercajtk.supabase.co/rest/v1';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpranBqc2hxdWJ6a2hlcmNhanRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MTEzNDEsImV4cCI6MjA5NzM4NzM0MX0.WS02i6YuYNdxoG--p4q04K7LiocXAkyO9mTk3kCmHLo';
+const H={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=representation'};
+let inventory=[],scanStreams={},scanIntervals={};
+
+function toast(msg,ok=true){const t=document.getElementById('toast');t.textContent=msg;t.style.background=ok?'#1f2937':'#991B1B';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+
+async function sbGet(t,p=''){const r=await fetch(SB_URL+'/'+t+(p?'?'+p:''),{headers:{...H,'Prefer':''}});if(!r.ok)throw new Error(await r.text());return r.json();}
+async function sbPost(t,b){const r=await fetch(SB_URL+'/'+t,{method:'POST',headers:H,body:JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());return r.json();}
+async function sbPatch(t,id,b){const r=await fetch(SB_URL+'/'+t+'?id=eq.'+id,{method:'PATCH',headers:H,body:JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());return r.json();}
+async function sbDelete(t,id){const r=await fetch(SB_URL+'/'+t+'?id=eq.'+id,{method:'DELETE',headers:{...H,'Prefer':''}});if(!r.ok)throw new Error(await r.text());}
+
+function showTab(t){
+  closeScanner('entrada');closeScanner('salida');
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('s-'+t).classList.add('active');
+  document.getElementById('t-'+t).classList.add('active');
+  if(t==='stock')// PEDIDOS
+let pedidos=JSON.parse(localStorage.getItem('dental_pedidos')||'[]');
+function savePedidos(){localStorage.setItem('dental_pedidos',JSON.stringify(pedidos));}
+
+function agregarPedido(){
+  const nombre=document.getElementById('ped-nombre').value.trim();
+  const cantidad=parseInt(document.getElementById('ped-cantidad').value)||1;
+  const unidad=document.getElementById('ped-unidad').value;
+  const solicitante=document.getElementById('ped-solicitante').value.trim()||'Sin especificar';
+  const proveedor=document.getElementById('ped-proveedor').value.trim();
+  const obs=document.getElementById('ped-obs').value.trim();
+  if(!nombre){toast('Ingresa el nombre del producto a pedir',false);return;}
+  pedidos.unshift({id:Date.now(),nombre,cantidad,unidad,solicitante,proveedor,obs,fecha:new Date().toISOString(),estado:'pendiente'});
+  savePedidos();
+  toast('✓ Pedido registrado');
+  ['ped-nombre','ped-solicitante','ped-proveedor','ped-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ped-cantidad').value='1';
+  loadPedidos();
+}
+
+function toggleEstadoPedido(id){
+  const p=pedidos.find(x=>x.id===id);
+  if(!p)return;
+  p.estado=p.estado==='pendiente'?'recibido':'pendiente';
+  savePedidos();loadPedidos();
+}
+
+function eliminarPedido(id){
+  if(!confirm('¿Eliminar este pedido?'))return;
+  pedidos=pedidos.filter(x=>x.id!==id);
+  savePedidos();loadPedidos();
+}
+
+function loadPedidos(){
+  const pendientes=pedidos.filter(p=>p.estado==='pendiente');
+  const recibidos=pedidos.filter(p=>p.estado==='recibido');
+  function renderPed(lista){
+    return lista.map(p=>{
+      const d=new Date(p.fecha);
+      const ds=d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+      const color=p.estado==='recibido'?'#059669':'#D97706';
+      const badge=p.estado==='recibido'?'<span class="badge badge-ok">Recibido</span>':'<span class="badge badge-low">Pendiente</span>';
+      return`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${p.nombre}</div>
+            <div style="font-size:12px;color:#9ca3af;margin-top:2px">${p.cantidad} ${p.unidad} · ${ds}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Solicitado por: ${p.solicitante}</div>
+            ${p.proveedor?`<div style="font-size:12px;color:#6b7280">Proveedor: ${p.proveedor}</div>`:''}
+            ${p.obs?`<div style="font-size:12px;color:#6b7280">Obs: ${p.obs}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">${badge}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" style="flex:1;font-size:12px;padding:7px 8px;background:${p.estado==='pendiente'?'#EAF3DE':'#FEF3C7'};border-color:${p.estado==='pendiente'?'#97C459':'#FCD34D'};color:${p.estado==='pendiente'?'#3B6D11':'#92400E'}" onclick="toggleEstadoPedido(${p.id})">
+            ${p.estado==='pendiente'?'✓ Marcar recibido':'↩ Marcar pendiente'}
+          </button>
+          <button class="btn btn-danger" style="font-size:12px;padding:7px 10px" onclick="eliminarPedido(${p.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  let html='';
+  if(pendientes.length){html+=`<p style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:8px"><i class="ti ti-clock"></i> Pendientes (${pendientes.length})</p>`;html+=renderPed(pendientes);}
+  if(recibidos.length){html+=`<p style="font-size:13px;font-weight:600;color:#3B6D11;margin-top:12px;margin-bottom:8px"><i class="ti ti-check"></i> Recibidos (${recibidos.length})</p>`;html+=renderPed(recibidos);}
+  if(!pedidos.length){html='<div class="loading"><i class="ti ti-truck-delivery" style="font-size:36px;display:block;margin-bottom:8px"></i>Sin pedidos registrados</div>';}
+  document.getElementById('pedidos-list').innerHTML=html;
+}
+
+loadStock();
+  if(t==='salida'){if(!inventory.length)loadStock().then(renderSalidaSelect);else renderSalidaSelect();}
+  if(t==='pedidos')loadPedidos();
+  if(t==='reportes')loadReportes();
+}
+
+function daysToExp(d){if(!d)return null;return Math.ceil((new Date(d)-new Date())/864e5);}
+
+function getBadge(item){
+  if(item.cantidad===0)return'<span class="badge badge-out">Agotado</span>';
+  if(item.stock_min&&item.cantidad<=item.stock_min)return'<span class="badge badge-low">Stock bajo</span>';
+  const d=daysToExp(item.caducidad);
+  if(d!==null&&d<=0)return'<span class="badge badge-out">Vencido</span>';
+  if(d!==null&&d<=30)return'<span class="badge badge-exp">Vence en '+d+'d</span>';
+  return'<span class="badge badge-ok">OK</span>';
+}
+
+async function loadStock(){
+  document.getElementById('stock-list').innerHTML='<div class="loading"><i class="ti ti-loader"></i>Cargando desde la nube...</div>';
+  try{inventory=await sbGet('insumos','order=nombre.asc');renderStock();}
+  catch(e){document.getElementById('stock-list').innerHTML=`<div class="loading" style="color:#DC2626"><i class="ti ti-alert-circle"></i>Error de conexión:<br><small>${e.message}</small></div>`;}
+}
+
+function renderStock(){
+  const q=document.getElementById('search-stock').value.toLowerCase();
+  const filtered=inventory.filter(i=>i.nombre.toLowerCase().includes(q)||i.codigo.toLowerCase().includes(q)||(i.categoria||'').toLowerCase().includes(q));
+  const expiring=inventory.filter(i=>{const d=daysToExp(i.caducidad);return d!==null&&d>0&&d<=30;});
+  document.getElementById('exp-alerts').innerHTML=expiring.length?`<div class="exp-warn"><i class="ti ti-alert-triangle"></i> ${expiring.length} insumo(s) vencen en 30 días</div>`:'';
+  if(!filtered.length){document.getElementById('stock-list').innerHTML='<div class="loading"><i class="ti ti-package"></i>Sin insumos registrados</div>';return;}
+  document.getElementById('stock-list').innerHTML=filtered.map(item=>`
+    <div class="card" style="cursor:pointer" onclick="openDetail('${item.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1;min-width:0;margin-right:8px">
+          <div class="item-name">${item.nombre}</div>
+          <div class="item-sub">${item.categoria||''} · ${item.codigo}</div>
+          ${item.caducidad?`<div class="item-sub">Vence: ${item.caducidad}</div>`:''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          ${getBadge(item)}
+          <div style="font-size:20px;font-weight:700;margin-top:4px">${item.cantidad} <span style="font-size:12px;color:#9ca3af;font-weight:400">${item.unidad}</span></div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function agregarInsumo(){
+  const codigo=document.getElementById('in-codigo').value.trim()||('INS-'+Date.now());
+  const nombre=document.getElementById('in-nombre').value.trim();
+  const cantidad=parseInt(document.getElementById('in-cantidad').value)||0;
+  if(!nombre){toast('Ingresa el nombre del insumo',false);return;}
+  try{
+    // Buscar duplicado por código o por nombre similar
+    const existing=inventory.find(i=>i.codigo===codigo);
+    const existingNombre=!existing?inventory.find(i=>i.nombre.toLowerCase()===nombre.toLowerCase()):null;
+    if(!existing&&existingNombre){
+      if(!confirm('Ya existe un producto con el nombre "'+existingNombre.nombre+'".\n¿Quieres sumar el stock al producto existente en vez de crear uno nuevo?')){
+        return;
+      }
+      await sbPatch('insumos',existingNombre.id,{cantidad:existingNombre.cantidad+cantidad});
+      await sbPost('movimientos',{tipo:'entrada',codigo:existingNombre.codigo,nombre:existingNombre.nombre,cantidad,profesional:'Sistema',box:'-'});
+      toast('✓ Stock sumado a: '+existingNombre.nombre);
+      ['in-codigo','in-nombre','in-cantidad','in-minimo','in-caducidad','in-proveedor'].forEach(id=>document.getElementById(id).value='');
+      await // PEDIDOS
+let pedidos=JSON.parse(localStorage.getItem('dental_pedidos')||'[]');
+function savePedidos(){localStorage.setItem('dental_pedidos',JSON.stringify(pedidos));}
+
+function agregarPedido(){
+  const nombre=document.getElementById('ped-nombre').value.trim();
+  const cantidad=parseInt(document.getElementById('ped-cantidad').value)||1;
+  const unidad=document.getElementById('ped-unidad').value;
+  const solicitante=document.getElementById('ped-solicitante').value.trim()||'Sin especificar';
+  const proveedor=document.getElementById('ped-proveedor').value.trim();
+  const obs=document.getElementById('ped-obs').value.trim();
+  if(!nombre){toast('Ingresa el nombre del producto a pedir',false);return;}
+  pedidos.unshift({id:Date.now(),nombre,cantidad,unidad,solicitante,proveedor,obs,fecha:new Date().toISOString(),estado:'pendiente'});
+  savePedidos();
+  toast('✓ Pedido registrado');
+  ['ped-nombre','ped-solicitante','ped-proveedor','ped-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ped-cantidad').value='1';
+  loadPedidos();
+}
+
+function toggleEstadoPedido(id){
+  const p=pedidos.find(x=>x.id===id);
+  if(!p)return;
+  p.estado=p.estado==='pendiente'?'recibido':'pendiente';
+  savePedidos();loadPedidos();
+}
+
+function eliminarPedido(id){
+  if(!confirm('¿Eliminar este pedido?'))return;
+  pedidos=pedidos.filter(x=>x.id!==id);
+  savePedidos();loadPedidos();
+}
+
+function loadPedidos(){
+  const pendientes=pedidos.filter(p=>p.estado==='pendiente');
+  const recibidos=pedidos.filter(p=>p.estado==='recibido');
+  function renderPed(lista){
+    return lista.map(p=>{
+      const d=new Date(p.fecha);
+      const ds=d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+      const color=p.estado==='recibido'?'#059669':'#D97706';
+      const badge=p.estado==='recibido'?'<span class="badge badge-ok">Recibido</span>':'<span class="badge badge-low">Pendiente</span>';
+      return`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${p.nombre}</div>
+            <div style="font-size:12px;color:#9ca3af;margin-top:2px">${p.cantidad} ${p.unidad} · ${ds}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Solicitado por: ${p.solicitante}</div>
+            ${p.proveedor?`<div style="font-size:12px;color:#6b7280">Proveedor: ${p.proveedor}</div>`:''}
+            ${p.obs?`<div style="font-size:12px;color:#6b7280">Obs: ${p.obs}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">${badge}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" style="flex:1;font-size:12px;padding:7px 8px;background:${p.estado==='pendiente'?'#EAF3DE':'#FEF3C7'};border-color:${p.estado==='pendiente'?'#97C459':'#FCD34D'};color:${p.estado==='pendiente'?'#3B6D11':'#92400E'}" onclick="toggleEstadoPedido(${p.id})">
+            ${p.estado==='pendiente'?'✓ Marcar recibido':'↩ Marcar pendiente'}
+          </button>
+          <button class="btn btn-danger" style="font-size:12px;padding:7px 10px" onclick="eliminarPedido(${p.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  let html='';
+  if(pendientes.length){html+=`<p style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:8px"><i class="ti ti-clock"></i> Pendientes (${pendientes.length})</p>`;html+=renderPed(pendientes);}
+  if(recibidos.length){html+=`<p style="font-size:13px;font-weight:600;color:#3B6D11;margin-top:12px;margin-bottom:8px"><i class="ti ti-check"></i> Recibidos (${recibidos.length})</p>`;html+=renderPed(recibidos);}
+  if(!pedidos.length){html='<div class="loading"><i class="ti ti-truck-delivery" style="font-size:36px;display:block;margin-bottom:8px"></i>Sin pedidos registrados</div>';}
+  document.getElementById('pedidos-list').innerHTML=html;
+}
+
+loadStock();
+      return;
+    }
+    if(existing){
+      await sbPatch('insumos',existing.id,{cantidad:existing.cantidad+cantidad});
+      await sbPost('movimientos',{tipo:'entrada',codigo,nombre:existing.nombre,cantidad,profesional:'Sistema',box:'-'});
+      toast('✓ Stock actualizado: '+existing.nombre);
+    } else {
+      const body={codigo,nombre,categoria:document.getElementById('in-cat').value,cantidad,unidad:document.getElementById('in-unidad').value,stock_min:parseInt(document.getElementById('in-minimo').value)||0,caducidad:document.getElementById('in-caducidad').value||null,proveedor:document.getElementById('in-proveedor').value||null};
+      await sbPost('insumos',body);
+      await sbPost('movimientos',{tipo:'entrada',codigo,nombre,cantidad,profesional:'Sistema',box:'-'});
+      toast('✓ Insumo agregado');
+    }
+    ['in-codigo','in-nombre','in-cantidad','in-minimo','in-caducidad','in-proveedor'].forEach(id=>document.getElementById(id).value='');
+    await // PEDIDOS
+let pedidos=JSON.parse(localStorage.getItem('dental_pedidos')||'[]');
+function savePedidos(){localStorage.setItem('dental_pedidos',JSON.stringify(pedidos));}
+
+function agregarPedido(){
+  const nombre=document.getElementById('ped-nombre').value.trim();
+  const cantidad=parseInt(document.getElementById('ped-cantidad').value)||1;
+  const unidad=document.getElementById('ped-unidad').value;
+  const solicitante=document.getElementById('ped-solicitante').value.trim()||'Sin especificar';
+  const proveedor=document.getElementById('ped-proveedor').value.trim();
+  const obs=document.getElementById('ped-obs').value.trim();
+  if(!nombre){toast('Ingresa el nombre del producto a pedir',false);return;}
+  pedidos.unshift({id:Date.now(),nombre,cantidad,unidad,solicitante,proveedor,obs,fecha:new Date().toISOString(),estado:'pendiente'});
+  savePedidos();
+  toast('✓ Pedido registrado');
+  ['ped-nombre','ped-solicitante','ped-proveedor','ped-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ped-cantidad').value='1';
+  loadPedidos();
+}
+
+function toggleEstadoPedido(id){
+  const p=pedidos.find(x=>x.id===id);
+  if(!p)return;
+  p.estado=p.estado==='pendiente'?'recibido':'pendiente';
+  savePedidos();loadPedidos();
+}
+
+function eliminarPedido(id){
+  if(!confirm('¿Eliminar este pedido?'))return;
+  pedidos=pedidos.filter(x=>x.id!==id);
+  savePedidos();loadPedidos();
+}
+
+function loadPedidos(){
+  const pendientes=pedidos.filter(p=>p.estado==='pendiente');
+  const recibidos=pedidos.filter(p=>p.estado==='recibido');
+  function renderPed(lista){
+    return lista.map(p=>{
+      const d=new Date(p.fecha);
+      const ds=d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+      const color=p.estado==='recibido'?'#059669':'#D97706';
+      const badge=p.estado==='recibido'?'<span class="badge badge-ok">Recibido</span>':'<span class="badge badge-low">Pendiente</span>';
+      return`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${p.nombre}</div>
+            <div style="font-size:12px;color:#9ca3af;margin-top:2px">${p.cantidad} ${p.unidad} · ${ds}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Solicitado por: ${p.solicitante}</div>
+            ${p.proveedor?`<div style="font-size:12px;color:#6b7280">Proveedor: ${p.proveedor}</div>`:''}
+            ${p.obs?`<div style="font-size:12px;color:#6b7280">Obs: ${p.obs}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">${badge}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" style="flex:1;font-size:12px;padding:7px 8px;background:${p.estado==='pendiente'?'#EAF3DE':'#FEF3C7'};border-color:${p.estado==='pendiente'?'#97C459':'#FCD34D'};color:${p.estado==='pendiente'?'#3B6D11':'#92400E'}" onclick="toggleEstadoPedido(${p.id})">
+            ${p.estado==='pendiente'?'✓ Marcar recibido':'↩ Marcar pendiente'}
+          </button>
+          <button class="btn btn-danger" style="font-size:12px;padding:7px 10px" onclick="eliminarPedido(${p.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  let html='';
+  if(pendientes.length){html+=`<p style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:8px"><i class="ti ti-clock"></i> Pendientes (${pendientes.length})</p>`;html+=renderPed(pendientes);}
+  if(recibidos.length){html+=`<p style="font-size:13px;font-weight:600;color:#3B6D11;margin-top:12px;margin-bottom:8px"><i class="ti ti-check"></i> Recibidos (${recibidos.length})</p>`;html+=renderPed(recibidos);}
+  if(!pedidos.length){html='<div class="loading"><i class="ti ti-truck-delivery" style="font-size:36px;display:block;margin-bottom:8px"></i>Sin pedidos registrados</div>';}
+  document.getElementById('pedidos-list').innerHTML=html;
+}
+
+loadStock();
+  }catch(e){toast('Error: '+e.message,false);}
+}
+
+function renderSalidaSelect(){
+  const sel=document.getElementById('sal-insumo');
+  sel.innerHTML='<option value="">Seleccionar...</option>'+inventory.map(i=>`<option value="${i.id}">${i.nombre} (${i.cantidad} ${i.unidad})</option>`).join('');
+}
+
+function filtrarSalida(){
+  const q=document.getElementById('sal-buscar').value.toLowerCase();
+  const sug=document.getElementById('sal-sugerencias');
+  if(!q){sug.style.display='none';return;}
+  const matches=inventory.filter(i=>i.nombre.toLowerCase().includes(q)).slice(0,6);
+  if(!matches.length){sug.style.display='none';return;}
+  sug.style.display='block';
+  sug.innerHTML=matches.map(i=>`<div onclick="elegirInsumoSalida('${i.id}','${i.nombre.replace(/'/g,"\\'")}');document.getElementById('sal-buscar').value=''" style="padding:10px 12px;border-bottom:1px solid #e5e7eb;cursor:pointer;font-size:13px"><b>${i.nombre}</b><br><span style="color:#9ca3af">${i.cantidad} ${i.unidad} disponibles</span></div>`).join('');
+}
+
+function elegirInsumoSalida(id,nombre){
+  document.getElementById('sal-sugerencias').style.display='none';
+  document.getElementById('sal-insumo').value=id;
+  document.getElementById('sal-buscar').value=nombre;
+  document.getElementById('sal-buscar').placeholder='Producto seleccionado ✓';
+}
+
+async function registrarSalida(){
+  const id=document.getElementById('sal-insumo').value;
+  const cant=parseInt(document.getElementById('sal-cantidad').value)||1;
+  const prof=document.getElementById('sal-profesional').value.trim()||'No especificado';
+  const box=document.getElementById('sal-box').value;
+  const proc=document.getElementById('sal-proc').value.trim();
+  if(!id){toast('Selecciona un insumo',false);return;}
+  const item=inventory.find(i=>i.id===id);
+  if(item.cantidad<cant){toast('Stock insuficiente: '+item.cantidad+' '+item.unidad,false);return;}
+  try{
+    await sbPatch('insumos',id,{cantidad:item.cantidad-cant});
+    await sbPost('movimientos',{tipo:'salida',codigo:item.codigo,nombre:item.nombre,cantidad:cant,profesional:prof,box,procedimiento:proc||null});
+    toast('✓ Salida registrada');
+    ['sal-profesional','sal-proc'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('sal-cantidad').value='1';
+    await // PEDIDOS
+let pedidos=JSON.parse(localStorage.getItem('dental_pedidos')||'[]');
+function savePedidos(){localStorage.setItem('dental_pedidos',JSON.stringify(pedidos));}
+
+function agregarPedido(){
+  const nombre=document.getElementById('ped-nombre').value.trim();
+  const cantidad=parseInt(document.getElementById('ped-cantidad').value)||1;
+  const unidad=document.getElementById('ped-unidad').value;
+  const solicitante=document.getElementById('ped-solicitante').value.trim()||'Sin especificar';
+  const proveedor=document.getElementById('ped-proveedor').value.trim();
+  const obs=document.getElementById('ped-obs').value.trim();
+  if(!nombre){toast('Ingresa el nombre del producto a pedir',false);return;}
+  pedidos.unshift({id:Date.now(),nombre,cantidad,unidad,solicitante,proveedor,obs,fecha:new Date().toISOString(),estado:'pendiente'});
+  savePedidos();
+  toast('✓ Pedido registrado');
+  ['ped-nombre','ped-solicitante','ped-proveedor','ped-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ped-cantidad').value='1';
+  loadPedidos();
+}
+
+function toggleEstadoPedido(id){
+  const p=pedidos.find(x=>x.id===id);
+  if(!p)return;
+  p.estado=p.estado==='pendiente'?'recibido':'pendiente';
+  savePedidos();loadPedidos();
+}
+
+function eliminarPedido(id){
+  if(!confirm('¿Eliminar este pedido?'))return;
+  pedidos=pedidos.filter(x=>x.id!==id);
+  savePedidos();loadPedidos();
+}
+
+function loadPedidos(){
+  const pendientes=pedidos.filter(p=>p.estado==='pendiente');
+  const recibidos=pedidos.filter(p=>p.estado==='recibido');
+  function renderPed(lista){
+    return lista.map(p=>{
+      const d=new Date(p.fecha);
+      const ds=d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+      const color=p.estado==='recibido'?'#059669':'#D97706';
+      const badge=p.estado==='recibido'?'<span class="badge badge-ok">Recibido</span>':'<span class="badge badge-low">Pendiente</span>';
+      return`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${p.nombre}</div>
+            <div style="font-size:12px;color:#9ca3af;margin-top:2px">${p.cantidad} ${p.unidad} · ${ds}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Solicitado por: ${p.solicitante}</div>
+            ${p.proveedor?`<div style="font-size:12px;color:#6b7280">Proveedor: ${p.proveedor}</div>`:''}
+            ${p.obs?`<div style="font-size:12px;color:#6b7280">Obs: ${p.obs}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">${badge}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" style="flex:1;font-size:12px;padding:7px 8px;background:${p.estado==='pendiente'?'#EAF3DE':'#FEF3C7'};border-color:${p.estado==='pendiente'?'#97C459':'#FCD34D'};color:${p.estado==='pendiente'?'#3B6D11':'#92400E'}" onclick="toggleEstadoPedido(${p.id})">
+            ${p.estado==='pendiente'?'✓ Marcar recibido':'↩ Marcar pendiente'}
+          </button>
+          <button class="btn btn-danger" style="font-size:12px;padding:7px 10px" onclick="eliminarPedido(${p.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  let html='';
+  if(pendientes.length){html+=`<p style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:8px"><i class="ti ti-clock"></i> Pendientes (${pendientes.length})</p>`;html+=renderPed(pendientes);}
+  if(recibidos.length){html+=`<p style="font-size:13px;font-weight:600;color:#3B6D11;margin-top:12px;margin-bottom:8px"><i class="ti ti-check"></i> Recibidos (${recibidos.length})</p>`;html+=renderPed(recibidos);}
+  if(!pedidos.length){html='<div class="loading"><i class="ti ti-truck-delivery" style="font-size:36px;display:block;margin-bottom:8px"></i>Sin pedidos registrados</div>';}
+  document.getElementById('pedidos-list').innerHTML=html;
+}
+
+loadStock();renderSalidaSelect();
+  }catch(e){toast('Error: '+e.message,false);}
+}
+
+async function loadReportes(){
+  try{
+    if(!inventory.length)inventory=await sbGet('insumos','order=nombre.asc');
+    const movs=await sbGet('movimientos','order=fecha.desc&limit=50');
+    const agotados=inventory.filter(i=>i.cantidad===0).length;
+    const bajos=inventory.filter(i=>i.stock_min&&i.cantidad>0&&i.cantidad<=i.stock_min).length;
+    const expItems=inventory.filter(i=>{const d=daysToExp(i.caducidad);return d!==null&&d>0&&d<=30;}).length;
+    document.getElementById('stats-grid').innerHTML=`
+      <div class="stat"><div class="stat-val">${inventory.length}</div><div class="stat-lbl">Total insumos</div></div>
+      <div class="stat"><div class="stat-val" style="color:#DC2626">${agotados}</div><div class="stat-lbl">Agotados</div></div>
+      <div class="stat"><div class="stat-val" style="color:#D97706">${bajos}</div><div class="stat-lbl">Stock bajo</div></div>
+      <div class="stat"><div class="stat-val" style="color:#7C3AED">${expItems}</div><div class="stat-lbl">Por vencer</div></div>`;
+    // Ranking por persona
+    const personaCount={};
+    movs.filter(h=>h.tipo==='salida'&&h.profesional&&h.profesional!=='No especificado').forEach(h=>{
+      personaCount[h.profesional]=(personaCount[h.profesional]||0)+h.cantidad;
+    });
+    const personas=Object.entries(personaCount).sort((a,b)=>b[1]-a[1]);
+    const maxP=personas[0]?personas[0][1]:1;
+    document.getElementById('persona-chart').innerHTML=personas.length?personas.map(([p,cnt])=>`
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${p}</span><span style="font-weight:600">${cnt} uds</span></div>
+        <div style="height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${Math.round(cnt/maxP*100)}%;background:#10B981;border-radius:4px"></div>
+        </div>
+      </div>`).join(''):'<p style="font-size:13px;color:#9ca3af">Sin datos aún</p>';
+    const boxCount={};
+    movs.filter(h=>h.tipo==='salida').forEach(h=>{boxCount[h.box]=(boxCount[h.box]||0)+h.cantidad;});
+    const boxes=Object.entries(boxCount).sort((a,b)=>b[1]-a[1]);
+    const maxB=boxes[0]?boxes[0][1]:1;
+    document.getElementById('box-chart').innerHTML=boxes.length?boxes.map(([box,cnt])=>`
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>${box}</span><span style="font-weight:600">${cnt} uds</span></div>
+        <div style="height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${Math.round(cnt/maxB*100)}%;background:#3B82F6;border-radius:4px"></div>
+        </div>
+      </div>`).join(''):'<p style="font-size:13px;color:#9ca3af">Sin datos aún</p>';
+    document.getElementById('historial-list').innerHTML=movs.slice(0,10).map(h=>{
+      const dd=new Date(h.fecha);
+      const ds=dd.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit'})+' '+dd.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+      const color=h.tipo==='entrada'?'#059669':'#DC2626';
+      const icon=h.tipo==='entrada'?'ti-arrow-down-right':'ti-arrow-up-right';
+      return`<div class="history-item"><div style="font-weight:600"><i class="ti ${icon}" style="color:${color}"></i> ${h.nombre} <span style="color:${color}">${h.tipo==='entrada'?'+':'-'}${h.cantidad}</span></div><div style="color:#9ca3af;margin-top:2px">${ds} · ${h.profesional} · ${h.box}${h.procedimiento?' · '+h.procedimiento:''}</div></div>`;
+    }).join('')||'<p style="font-size:13px;color:#9ca3af">Sin movimientos aún</p>';
+  }catch(e){toast('Error en reportes',false);}
+}
+
+async function openDetail(id){
+  const item=inventory.find(i=>i.id===id);if(!item)return;
+  let hist=[];
+  try{hist=await sbGet('movimientos','codigo=eq.'+encodeURIComponent(item.codigo)+'&order=fecha.desc&limit=5');}catch(e){}
+  const d=daysToExp(item.caducidad);
+  let expText='';
+  if(d!==null){
+    if(d<=0)expText=`<div style="background:#FEF2F2;border-radius:8px;padding:10px;color:#DC2626;font-size:13px;margin-bottom:12px"><i class="ti ti-alert-circle"></i> Vencido hace ${Math.abs(d)} días</div>`;
+    else if(d<=30)expText=`<div class="exp-warn"><i class="ti ti-alert-triangle"></i> Vence en ${d} días</div>`;
+  }
+  document.getElementById('modal-title').textContent=item.nombre;
+  document.getElementById('modal-content').innerHTML=`${expText}
+    <table style="width:100%;font-size:13px;margin-bottom:16px;border-collapse:collapse">
+      <tr><td style="color:#6b7280;padding:6px 0;border-bottom:1px solid #f3f4f6">Código</td><td style="text-align:right;padding:6px 0;border-bottom:1px solid #f3f4f6">${item.codigo}</td></tr>
+      <tr><td style="color:#6b7280;padding:6px 0;border-bottom:1px solid #f3f4f6">Categoría</td><td style="text-align:right;padding:6px 0;border-bottom:1px solid #f3f4f6">${item.categoria||'-'}</td></tr>
+      <tr><td style="color:#6b7280;padding:6px 0;border-bottom:1px solid #f3f4f6">Stock actual</td><td style="text-align:right;font-weight:700;padding:6px 0;border-bottom:1px solid #f3f4f6">${item.cantidad} ${item.unidad}</td></tr>
+      <tr><td style="color:#6b7280;padding:6px 0;border-bottom:1px solid #f3f4f6">Stock mínimo</td><td style="text-align:right;padding:6px 0;border-bottom:1px solid #f3f4f6">${item.stock_min||'-'}</td></tr>
+      <tr><td style="color:#6b7280;padding:6px 0;border-bottom:1px solid #f3f4f6">Caducidad</td><td style="text-align:right;padding:6px 0;border-bottom:1px solid #f3f4f6">${item.caducidad||'-'}</td></tr>
+      <tr><td style="color:#6b7280;padding:6px 0">Proveedor</td><td style="text-align:right;padding:6px 0">${item.proveedor||'-'}</td></tr>
+    </table>
+    ${hist.length?'<p style="font-size:13px;font-weight:600;margin-bottom:8px">Últimos movimientos</p>'+hist.map(h=>{
+      const dd=new Date(h.fecha);const ds=dd.toLocaleDateString('es-CL')+' '+dd.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+      const color=h.tipo==='entrada'?'#059669':'#DC2626';
+      return`<div class="history-item"><div style="font-weight:600;color:${color}">${h.tipo==='entrada'?'Entrada':'Salida'}: ${h.cantidad} ${item.unidad}</div><div style="color:#9ca3af;margin-top:2px">${ds} · ${h.profesional} · ${h.box}</div></div>`;
+    }).join(''):''}
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-danger" style="flex:1" onclick="eliminarInsumo('${id}','${item.nombre.replace(/'/g,"\\'")}')"><i class="ti ti-trash"></i>Eliminar</button>
+      <button class="btn btn-success" style="flex:1" onclick="closeModal();showTab('salida');setTimeout(()=>{renderSalidaSelect();document.getElementById('sal-insumo').value='${id}'},300)"><i class="ti ti-arrow-up-right"></i>Registrar uso</button>
+    </div>`;
+  document.getElementById('detail-modal').classList.add('show');
+}
+
+async function eliminarInsumo(id,nombre){
+  if(!confirm('¿Eliminar '+nombre+'?'))return;
+  try{await sbDelete('insumos',id);toast('Insumo eliminado');closeModal();// PEDIDOS
+let pedidos=JSON.parse(localStorage.getItem('dental_pedidos')||'[]');
+function savePedidos(){localStorage.setItem('dental_pedidos',JSON.stringify(pedidos));}
+
+function agregarPedido(){
+  const nombre=document.getElementById('ped-nombre').value.trim();
+  const cantidad=parseInt(document.getElementById('ped-cantidad').value)||1;
+  const unidad=document.getElementById('ped-unidad').value;
+  const solicitante=document.getElementById('ped-solicitante').value.trim()||'Sin especificar';
+  const proveedor=document.getElementById('ped-proveedor').value.trim();
+  const obs=document.getElementById('ped-obs').value.trim();
+  if(!nombre){toast('Ingresa el nombre del producto a pedir',false);return;}
+  pedidos.unshift({id:Date.now(),nombre,cantidad,unidad,solicitante,proveedor,obs,fecha:new Date().toISOString(),estado:'pendiente'});
+  savePedidos();
+  toast('✓ Pedido registrado');
+  ['ped-nombre','ped-solicitante','ped-proveedor','ped-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ped-cantidad').value='1';
+  loadPedidos();
+}
+
+function toggleEstadoPedido(id){
+  const p=pedidos.find(x=>x.id===id);
+  if(!p)return;
+  p.estado=p.estado==='pendiente'?'recibido':'pendiente';
+  savePedidos();loadPedidos();
+}
+
+function eliminarPedido(id){
+  if(!confirm('¿Eliminar este pedido?'))return;
+  pedidos=pedidos.filter(x=>x.id!==id);
+  savePedidos();loadPedidos();
+}
+
+function loadPedidos(){
+  const pendientes=pedidos.filter(p=>p.estado==='pendiente');
+  const recibidos=pedidos.filter(p=>p.estado==='recibido');
+  function renderPed(lista){
+    return lista.map(p=>{
+      const d=new Date(p.fecha);
+      const ds=d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+      const color=p.estado==='recibido'?'#059669':'#D97706';
+      const badge=p.estado==='recibido'?'<span class="badge badge-ok">Recibido</span>':'<span class="badge badge-low">Pendiente</span>';
+      return`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${p.nombre}</div>
+            <div style="font-size:12px;color:#9ca3af;margin-top:2px">${p.cantidad} ${p.unidad} · ${ds}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Solicitado por: ${p.solicitante}</div>
+            ${p.proveedor?`<div style="font-size:12px;color:#6b7280">Proveedor: ${p.proveedor}</div>`:''}
+            ${p.obs?`<div style="font-size:12px;color:#6b7280">Obs: ${p.obs}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">${badge}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" style="flex:1;font-size:12px;padding:7px 8px;background:${p.estado==='pendiente'?'#EAF3DE':'#FEF3C7'};border-color:${p.estado==='pendiente'?'#97C459':'#FCD34D'};color:${p.estado==='pendiente'?'#3B6D11':'#92400E'}" onclick="toggleEstadoPedido(${p.id})">
+            ${p.estado==='pendiente'?'✓ Marcar recibido':'↩ Marcar pendiente'}
+          </button>
+          <button class="btn btn-danger" style="font-size:12px;padding:7px 10px" onclick="eliminarPedido(${p.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  let html='';
+  if(pendientes.length){html+=`<p style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:8px"><i class="ti ti-clock"></i> Pendientes (${pendientes.length})</p>`;html+=renderPed(pendientes);}
+  if(recibidos.length){html+=`<p style="font-size:13px;font-weight:600;color:#3B6D11;margin-top:12px;margin-bottom:8px"><i class="ti ti-check"></i> Recibidos (${recibidos.length})</p>`;html+=renderPed(recibidos);}
+  if(!pedidos.length){html='<div class="loading"><i class="ti ti-truck-delivery" style="font-size:36px;display:block;margin-bottom:8px"></i>Sin pedidos registrados</div>';}
+  document.getElementById('pedidos-list').innerHTML=html;
+}
+
+loadStock();}
+  catch(e){toast('Error al eliminar',false);}
+}
+
+function closeModal(){document.getElementById('detail-modal').classList.remove('show');}
+
+async function openScanner(mode){
+  const wrap=document.getElementById('scan-'+mode);
+  if(!wrap){if(mode==='buscar'){const c=prompt('Ingresa el código a buscar:');if(c)usarCodigo(mode,c);}return;}
+  wrap.classList.add('show');
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    scanStreams[mode]=stream;
+    const video=document.getElementById('sv-'+mode);
+    if(video)video.srcObject=stream;
+    if(typeof BarcodeDetector!=='undefined'){
+      const bd=new BarcodeDetector({formats:['qr_code','ean_13','ean_8','code_128','code_39','upc_a','upc_e']});
+      scanIntervals[mode]=setInterval(async()=>{
+        try{const codes=await bd.detect(video);if(codes.length>0)usarCodigo(mode,codes[0].rawValue);}catch(e){}
+      },500);
+    }
+  }catch(e){console.log('Sin cámara, usar manual');}
+}
+
+function closeScanner(mode){
+  const wrap=document.getElementById('scan-'+mode);
+  if(wrap)wrap.classList.remove('show');
+  if(scanStreams[mode]){scanStreams[mode].getTracks().forEach(t=>t.stop());delete scanStreams[mode];}
+  if(scanIntervals[mode]){clearInterval(scanIntervals[mode]);delete scanIntervals[mode];}
+}
+
+function usarCodigo(mode,code){
+  if(!code||!code.trim())return;
+  code=code.trim();
+  closeScanner(mode);
+  if(mode==='entrada'){
+    document.getElementById('in-codigo').value=code;
+    const ex=inventory.find(i=>i.codigo===code);
+    if(ex){document.getElementById('in-nombre').value=ex.nombre;toast('Insumo existente encontrado');}
+  } else if(mode==='salida'){
+    const ex=inventory.find(i=>i.codigo===code);
+    if(ex){renderSalidaSelect();document.getElementById('sal-insumo').value=ex.id;toast('Seleccionado: '+ex.nombre);}
+    else toast('Insumo no encontrado: '+code,false);
+  } else if(mode==='buscar'){
+    document.getElementById('search-stock').value=code;renderStock();
+  }
+}
+
+document.getElementById('detail-modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+// PEDIDOS
+let pedidos=JSON.parse(localStorage.getItem('dental_pedidos')||'[]');
+function savePedidos(){localStorage.setItem('dental_pedidos',JSON.stringify(pedidos));}
+
+function agregarPedido(){
+  const nombre=document.getElementById('ped-nombre').value.trim();
+  const cantidad=parseInt(document.getElementById('ped-cantidad').value)||1;
+  const unidad=document.getElementById('ped-unidad').value;
+  const solicitante=document.getElementById('ped-solicitante').value.trim()||'Sin especificar';
+  const proveedor=document.getElementById('ped-proveedor').value.trim();
+  const obs=document.getElementById('ped-obs').value.trim();
+  if(!nombre){toast('Ingresa el nombre del producto a pedir',false);return;}
+  pedidos.unshift({id:Date.now(),nombre,cantidad,unidad,solicitante,proveedor,obs,fecha:new Date().toISOString(),estado:'pendiente'});
+  savePedidos();
+  toast('✓ Pedido registrado');
+  ['ped-nombre','ped-solicitante','ped-proveedor','ped-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ped-cantidad').value='1';
+  loadPedidos();
+}
+
+function toggleEstadoPedido(id){
+  const p=pedidos.find(x=>x.id===id);
+  if(!p)return;
+  p.estado=p.estado==='pendiente'?'recibido':'pendiente';
+  savePedidos();loadPedidos();
+}
+
+function eliminarPedido(id){
+  if(!confirm('¿Eliminar este pedido?'))return;
+  pedidos=pedidos.filter(x=>x.id!==id);
+  savePedidos();loadPedidos();
+}
+
+function loadPedidos(){
+  const pendientes=pedidos.filter(p=>p.estado==='pendiente');
+  const recibidos=pedidos.filter(p=>p.estado==='recibido');
+  function renderPed(lista){
+    return lista.map(p=>{
+      const d=new Date(p.fecha);
+      const ds=d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+      const color=p.estado==='recibido'?'#059669':'#D97706';
+      const badge=p.estado==='recibido'?'<span class="badge badge-ok">Recibido</span>':'<span class="badge badge-low">Pendiente</span>';
+      return`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${p.nombre}</div>
+            <div style="font-size:12px;color:#9ca3af;margin-top:2px">${p.cantidad} ${p.unidad} · ${ds}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Solicitado por: ${p.solicitante}</div>
+            ${p.proveedor?`<div style="font-size:12px;color:#6b7280">Proveedor: ${p.proveedor}</div>`:''}
+            ${p.obs?`<div style="font-size:12px;color:#6b7280">Obs: ${p.obs}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">${badge}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" style="flex:1;font-size:12px;padding:7px 8px;background:${p.estado==='pendiente'?'#EAF3DE':'#FEF3C7'};border-color:${p.estado==='pendiente'?'#97C459':'#FCD34D'};color:${p.estado==='pendiente'?'#3B6D11':'#92400E'}" onclick="toggleEstadoPedido(${p.id})">
+            ${p.estado==='pendiente'?'✓ Marcar recibido':'↩ Marcar pendiente'}
+          </button>
+          <button class="btn btn-danger" style="font-size:12px;padding:7px 10px" onclick="eliminarPedido(${p.id})"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  let html='';
+  if(pendientes.length){html+=`<p style="font-size:13px;font-weight:600;color:#92400E;margin-bottom:8px"><i class="ti ti-clock"></i> Pendientes (${pendientes.length})</p>`;html+=renderPed(pendientes);}
+  if(recibidos.length){html+=`<p style="font-size:13px;font-weight:600;color:#3B6D11;margin-top:12px;margin-bottom:8px"><i class="ti ti-check"></i> Recibidos (${recibidos.length})</p>`;html+=renderPed(recibidos);}
+  if(!pedidos.length){html='<div class="loading"><i class="ti ti-truck-delivery" style="font-size:36px;display:block;margin-bottom:8px"></i>Sin pedidos registrados</div>';}
+  document.getElementById('pedidos-list').innerHTML=html;
+}
+
+loadStock();
+</script>
+</body>
+</html>
